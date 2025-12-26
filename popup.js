@@ -61,22 +61,47 @@ async function extractConnections() {
 
 // Scrape connections from the page (injected into LinkedIn page)
 function scrapeConnections() {
-  const connectionCards = document.querySelectorAll('.mn-connection-card');
+  // Try multiple selectors as LinkedIn's structure varies
+  const connectionCards = document.querySelectorAll('.reusable-search__result-container, .mn-connection-card');
   const extracted = [];
 
   connectionCards.forEach(card => {
     try {
-      // Extract name
-      const nameElement = card.querySelector('.mn-connection-card__name');
-      const name = nameElement ? nameElement.textContent.trim() : '';
-
-      // Extract title/occupation
-      const occupationElement = card.querySelector('.mn-connection-card__occupation');
-      const title = occupationElement ? occupationElement.textContent.trim() : '';
-
-      // Extract profile URL
+      // Extract profile URL first
       const profileLink = card.querySelector('a[href*="/in/"]');
       const profileUrl = profileLink ? profileLink.href : '';
+
+      // Extract name - try multiple selectors
+      let name = '';
+      const nameSelectors = [
+        '.entity-result__title-text',
+        '.mn-connection-card__name',
+        'span[aria-hidden="true"]'
+      ];
+
+      for (const selector of nameSelectors) {
+        const nameElement = card.querySelector(selector);
+        if (nameElement && nameElement.textContent.trim()) {
+          name = nameElement.textContent.trim();
+          break;
+        }
+      }
+
+      // Extract title/occupation - try multiple selectors
+      let title = '';
+      const titleSelectors = [
+        '.entity-result__primary-subtitle',
+        '.mn-connection-card__occupation',
+        '.entity-result__summary'
+      ];
+
+      for (const selector of titleSelectors) {
+        const titleElement = card.querySelector(selector);
+        if (titleElement && titleElement.textContent.trim()) {
+          title = titleElement.textContent.trim();
+          break;
+        }
+      }
 
       // Only add if we have at least a name and URL
       if (name && profileUrl) {
