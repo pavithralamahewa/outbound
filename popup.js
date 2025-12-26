@@ -61,45 +61,33 @@ async function extractConnections() {
 
 // Scrape connections from the page (injected into LinkedIn page)
 function scrapeConnections() {
-  // Try multiple selectors as LinkedIn's structure varies
-  const connectionCards = document.querySelectorAll('.reusable-search__result-container, .mn-connection-card');
+  // Use the anchor elements with data-view-name="connections-profile" as card containers
+  const connectionCards = document.querySelectorAll('a[href*="/in/"][data-view-name="connections-profile"]');
   const extracted = [];
 
   connectionCards.forEach(card => {
     try {
-      // Extract profile URL first
-      const profileLink = card.querySelector('a[href*="/in/"]');
-      const profileUrl = profileLink ? profileLink.href : '';
+      // Extract profile URL from the main anchor
+      const profileUrl = card.href || '';
 
-      // Extract name - try multiple selectors
-      let name = '';
-      const nameSelectors = [
-        '.entity-result__title-text',
-        '.mn-connection-card__name',
-        'span[aria-hidden="true"]'
-      ];
+      // Extract name from the nested anchor tag
+      const nameElement = card.querySelector('p a[href*="/in/"]');
+      const name = nameElement ? nameElement.textContent.trim() : '';
 
-      for (const selector of nameSelectors) {
-        const nameElement = card.querySelector(selector);
-        if (nameElement && nameElement.textContent.trim()) {
-          name = nameElement.textContent.trim();
-          break;
-        }
-      }
-
-      // Extract title/occupation - try multiple selectors
+      // Extract title from the paragraph that doesn't contain a link
+      // Look for p tags within the card's first div
       let title = '';
-      const titleSelectors = [
-        '.entity-result__primary-subtitle',
-        '.mn-connection-card__occupation',
-        '.entity-result__summary'
-      ];
+      const allParagraphs = card.querySelectorAll('p');
 
-      for (const selector of titleSelectors) {
-        const titleElement = card.querySelector(selector);
-        if (titleElement && titleElement.textContent.trim()) {
-          title = titleElement.textContent.trim();
-          break;
+      for (const p of allParagraphs) {
+        // Skip if this paragraph contains a link (that's the name)
+        if (!p.querySelector('a')) {
+          const text = p.textContent.trim();
+          // Skip the "Connected on..." text
+          if (text && !text.startsWith('Connected on')) {
+            title = text;
+            break;
+          }
         }
       }
 
@@ -107,7 +95,7 @@ function scrapeConnections() {
       if (name && profileUrl) {
         extracted.push({
           name,
-          title,
+          title: title || 'Not specified',
           profileUrl
         });
       }
